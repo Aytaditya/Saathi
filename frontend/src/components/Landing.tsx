@@ -1,7 +1,7 @@
-"use client"
-
 import { ArrowRight, Mic, FileText, Shield, Globe, ChevronDown } from "lucide-react"
 import { motion } from "framer-motion"
+
+
 
 export default function LandingPage() {
   return (
@@ -23,15 +23,14 @@ export default function LandingPage() {
               repeat: Number.POSITIVE_INFINITY,
               ease: "easeInOut",
             }}
-            className={`absolute rounded-full blur-xl opacity-10 ${
-              i % 4 === 0
-                ? "bg-gradient-to-r from-purple-500 to-pink-500 h-32 w-32"
-                : i % 4 === 1
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 h-24 w-24"
-                  : i % 4 === 2
-                    ? "bg-gradient-to-r from-green-500 to-emerald-500 h-28 w-28"
-                    : "bg-gradient-to-r from-orange-500 to-red-500 h-20 w-20"
-            }`}
+            className={`absolute rounded-full blur-xl opacity-10 ${i % 4 === 0
+              ? "bg-gradient-to-r from-purple-500 to-pink-500 h-32 w-32"
+              : i % 4 === 1
+                ? "bg-gradient-to-r from-blue-500 to-cyan-500 h-24 w-24"
+                : i % 4 === 2
+                  ? "bg-gradient-to-r from-green-500 to-emerald-500 h-28 w-28"
+                  : "bg-gradient-to-r from-orange-500 to-red-500 h-20 w-20"
+              }`}
             style={{
               left: `${10 + i * 12}%`,
               top: `${5 + i * 11}%`,
@@ -54,19 +53,18 @@ export default function LandingPage() {
               ease: "easeInOut",
               delay: i * 0.2,
             }}
-            className={`absolute h-1 w-1 rounded-full ${
-              i % 6 === 0
-                ? "bg-purple-400"
-                : i % 6 === 1
-                  ? "bg-blue-400"
-                  : i % 6 === 2
-                    ? "bg-green-400"
-                    : i % 6 === 3
-                      ? "bg-pink-400"
-                      : i % 6 === 4
-                        ? "bg-cyan-400"
-                        : "bg-orange-400"
-            }`}
+            className={`absolute h-1 w-1 rounded-full ${i % 6 === 0
+              ? "bg-purple-400"
+              : i % 6 === 1
+                ? "bg-blue-400"
+                : i % 6 === 2
+                  ? "bg-green-400"
+                  : i % 6 === 3
+                    ? "bg-pink-400"
+                    : i % 6 === 4
+                      ? "bg-cyan-400"
+                      : "bg-orange-400"
+              }`}
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
@@ -91,38 +89,6 @@ export default function LandingPage() {
           }}
         />
       </div>
-
-      <header className="relative p-6 flex justify-between items-center bg-black/95 backdrop-blur-lg border-b border-gray-900 z-50">
-        <motion.h1
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent"
-        >
-          Saathi
-        </motion.h1>
-        <nav className="hidden md:block">
-          <ul className="flex gap-8">
-            {["Features", "How it Works", "FAQ"].map((item) => (
-              <motion.li key={item} whileHover={{ y: -2 }} whileTap={{ scale: 0.95 }}>
-                <a
-                  href={`#${item.toLowerCase().replace(" ", "-")}`}
-                  className="text-gray-400 hover:text-white transition-colors font-medium text-sm uppercase tracking-wider"
-                >
-                  {item}
-                </a>
-              </motion.li>
-            ))}
-          </ul>
-        </nav>
-        <motion.a
-          href="#start"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="px-6 py-2.5 rounded-full bg-white text-black font-medium text-sm tracking-wide hover:bg-gray-200 transition-all border border-white/10 shadow-lg"
-        >
-          Try Now
-        </motion.a>
-      </header>
 
       <main className="relative text-center pt-32 px-6 z-10">
         <motion.div
