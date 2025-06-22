@@ -1,9 +1,7 @@
-"use client"
 
 import { useAuth, useUser } from "@clerk/clerk-react"
-import { Navigate } from "react-router-dom"
+import { Navigate, Link } from "react-router-dom"
 import { motion } from "framer-motion"
-import ChatBot from "../components/Chatbot"
 
 const Dashboard = () => {
   const { isSignedIn, isLoaded } = useAuth()
@@ -65,7 +63,7 @@ const Dashboard = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl font-bold mb-3">
+          <h1 className="text-5xl font-bold mb-3">
              Welcome back,{" "}
             <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               {firstName}
@@ -121,13 +119,93 @@ const Dashboard = () => {
           </div>
 
           <div className="mt-8 pt-6 border-t border-gray-800 text-center">
-            <p className="text-teal-400 font-medium">💬 Ready to start? How can I help you today?</p>
+            <p className="text-teal-400 font-medium">💬 Ready to start? Click the chat icon to begin!</p>
           </div>
         </motion.div>
 
+        {/* Navigation Cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+        >
+          {/* Chat with Saathi Card */}
+          <Link to="/chat">
+            <motion.div
+              whileHover={{ scale: 1.05, y: -5 }}
+              whileTap={{ scale: 0.95 }}
+              className="h-55 bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-sm border border-purple-500/30 rounded-2xl p-6 cursor-pointer transition-all hover:border-purple-400/50 hover:shadow-lg hover:shadow-purple-500/10"
+            >
+              <div className="text-center">
+                <div className="bg-gradient-to-r from-purple-500 to-pink-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Chat with Saathi</h3>
+                <p className="text-gray-400 text-sm">
+                  Start a conversation and get instant answers about government schemes
+                </p>
+              </div>
+            </motion.div>
+          </Link>
+
+          {/* Explore Schemes Card */}
+          <Link to="/explore">
+            <motion.div
+              whileHover={{ scale: 1.05, y: -5 }}
+              whileTap={{ scale: 0.95 }}
+              className="h-55 bg-gradient-to-br from-blue-600/20 to-cyan-600/20 backdrop-blur-sm border border-blue-500/30 rounded-2xl p-6 cursor-pointer transition-all hover:border-blue-400/50 hover:shadow-lg hover:shadow-blue-500/10"
+            >
+              <div className="text-center">
+                <div className="bg-gradient-to-r from-blue-500 to-cyan-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Explore Schemes</h3>
+                <p className="text-gray-400 text-sm">Browse through various government schemes and their details</p>
+              </div>
+            </motion.div>
+          </Link>
+
+          {/* Check Eligibility Card */}
+          <Link to="/eligibility">
+            <motion.div
+              whileHover={{ scale: 1.05, y: -5 }}
+              whileTap={{ scale: 0.95 }}
+              className="h-55 bg-gradient-to-br from-green-600/20 to-emerald-600/20 backdrop-blur-sm border border-green-500/30 rounded-2xl p-6 cursor-pointer transition-all hover:border-green-400/50 hover:shadow-lg hover:shadow-green-500/10"
+            >
+              <div className="text-center">
+                <div className="bg-gradient-to-r from-green-500 to-emerald-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Check Eligibility</h3>
+                <p className="text-gray-400 text-sm">Find out which schemes you qualify for based on your profile</p>
+              </div>
+            </motion.div>
+          </Link>
+        </motion.div>
         {/* Space for your additional content */}
       </div>
-      {/* <ChatBot/> */}
     </div>
   )
 }
