@@ -1,3 +1,5 @@
 langchain
 fastapi
 uvicorn
+pypdf
+langchain_community
