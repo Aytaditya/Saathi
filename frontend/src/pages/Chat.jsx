@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Send, Mic, ArrowLeft, Loader2, Sparkles, MessageSquare } from "lucide-react"
+import { Send, Mic, MicOff, ArrowLeft, Loader2, Sparkles, MessageSquare, Volume2, VolumeX } from "lucide-react"
 import { Link } from "react-router-dom"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { Player } from "@lottiefiles/react-lottie-player"
 
 const Chat = () => {
   const [messages, setMessages] = useState([
@@ -18,7 +19,13 @@ const Chat = () => {
   ])
   const [inputText, setInputText] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [speechEnabled, setSpeechEnabled] = useState(true)
+  const [recognition, setRecognition] = useState(null)
   const messagesEndRef = useRef(null)
+  const synthRef = useRef(null)
+  const lottieRef = useRef()
 
   const quickQuestions = [
     "What are benefits of Pradhan Mantri Jan Arogya Yojana",
@@ -29,6 +36,52 @@ const Chat = () => {
     "What is eligibility criteria for Pradhan Mantri Awas Yojana and its benefits?",
   ]
 
+  // Initialize Speech Recognition
+  useEffect(() => {
+    if (typeof window !== "undefined" && ("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      const recognitionInstance = new SpeechRecognition()
+
+      recognitionInstance.continuous = false
+      recognitionInstance.interimResults = false
+      recognitionInstance.lang = "en-US"
+
+      recognitionInstance.onstart = () => {
+        setIsListening(true)
+      }
+
+      recognitionInstance.onresult = (event) => {
+        const transcript = event.results[0][0].transcript
+        setInputText(transcript)
+        setIsListening(false)
+      }
+
+      recognitionInstance.onerror = (event) => {
+        console.error("Speech recognition error:", event.error)
+        setIsListening(false)
+      }
+
+      recognitionInstance.onend = () => {
+        setIsListening(false)
+      }
+
+      setRecognition(recognitionInstance)
+    }
+
+    // Initialize Speech Synthesis
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      synthRef.current = window.speechSynthesis
+    }
+
+    return () => {
+      // Cleanup
+      if (synthRef.current) {
+        synthRef.current.cancel()
+      }
+    }
+  }, [])
+
+  // Auto-scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -37,8 +90,88 @@ const Chat = () => {
     scrollToBottom()
   }, [messages])
 
+  useEffect(() => {
+    if (isSpeaking) {
+      lottieRef.current?.play()
+    } else {
+      lottieRef.current?.stop()
+    }
+  }, [isSpeaking])
+
+  // Text-to-Speech function
+  const speakText = (text) => {
+    if (!speechEnabled || !synthRef.current) return
+
+    // Cancel any ongoing speech
+    if (synthRef.current.speaking) {
+      synthRef.current.cancel()
+    }
+
+    // Clean the text for better speech (remove markdown, etc.)
+    const cleanText = text
+      .replace(/[#*`]/g, "") // Remove markdown symbols
+      .replace(/\n+/g, ". ") // Replace newlines with periods
+      .replace(/\s+/g, " ") // Normalize whitespace
+      .trim()
+
+    if (cleanText) {
+      const utterance = new SpeechSynthesisUtterance(cleanText)
+      utterance.rate = 0.9
+      utterance.pitch = 1
+      utterance.volume = 0.8
+
+      // Try to use a more natural voice
+      const voices = synthRef.current.getVoices()
+      const preferredVoice =
+        voices.find(
+          (voice) =>
+            voice.lang.startsWith("en") &&
+            (voice.name.includes("Google") || voice.name.includes("Microsoft") || voice.name.includes("Natural")),
+        ) || voices.find((voice) => voice.lang.startsWith("en"))
+
+      if (preferredVoice) {
+        utterance.voice = preferredVoice
+      }
+
+      utterance.onstart = () => setIsSpeaking(true)
+      utterance.onend = () => setIsSpeaking(false)
+      utterance.onerror = () => setIsSpeaking(false)
+
+      synthRef.current.speak(utterance)
+    }
+  }
+
+  // Start voice recognition
+  const startListening = () => {
+    if (recognition && !isListening) {
+      recognition.start()
+    }
+  }
+
+  // Stop voice recognition
+  const stopListening = () => {
+    if (recognition && isListening) {
+      recognition.stop()
+    }
+  }
+
+  // Toggle speech output
+  const toggleSpeech = () => {
+    setSpeechEnabled(!speechEnabled)
+    if (isSpeaking && synthRef.current) {
+      synthRef.current.cancel()
+      setIsSpeaking(false)
+    }
+  }
+
   const sendMessage = async (messageText) => {
     if (!messageText.trim() || isLoading) return
+
+    // Stop any ongoing speech
+    if (synthRef.current) {
+      synthRef.current.cancel()
+      setIsSpeaking(false)
+    }
 
     const userMessage = {
       id: messages.length + 1,
@@ -65,6 +198,8 @@ const Chat = () => {
       const response = await fetch(`http://localhost:8000/chat?question=${encodeURIComponent(messageText)}`)
       const data = await response.json()
 
+      const botResponse = data.answer || "I'm sorry, I couldn't process your request right now."
+
       // Remove loading message and add actual response
       setMessages((prev) => {
         const withoutLoading = prev.filter((msg) => !msg.isLoading)
@@ -72,26 +207,34 @@ const Chat = () => {
           ...withoutLoading,
           {
             id: prev.length + 1,
-            text: data.answer || "I'm sorry, I couldn't process your request right now.",
+            text: botResponse,
             isBot: true,
             timestamp: new Date(),
           },
         ]
       })
+
+      // Automatically speak the response
+      setTimeout(() => speakText(botResponse), 500) // Small delay to ensure message is rendered
     } catch (error) {
       console.error("Error:", error)
+      const errorMessage = "I'm sorry, there was an error processing your request. Please try again."
+
       setMessages((prev) => {
         const withoutLoading = prev.filter((msg) => !msg.isLoading)
         return [
           ...withoutLoading,
           {
             id: prev.length + 1,
-            text: "I'm sorry, there was an error processing your request. Please try again.",
+            text: errorMessage,
             isBot: true,
             timestamp: new Date(),
           },
         ]
       })
+
+      // Speak error message
+      setTimeout(() => speakText(errorMessage), 500)
     } finally {
       setIsLoading(false)
     }
@@ -111,6 +254,20 @@ const Chat = () => {
       handleSendMessage()
     }
   }
+
+  // Auto-send message when speech recognition completes and there's significant text
+  useEffect(() => {
+    if (inputText.trim().length > 5 && !isListening && inputText !== "") {
+      // Small delay to allow user to see the transcribed text
+      const timer = setTimeout(() => {
+        if (inputText.trim()) {
+          handleSendMessage()
+        }
+      }, 1000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [inputText, isListening])
 
   // Custom markdown components for better styling
   const markdownComponents = {
@@ -271,9 +428,31 @@ const Chat = () => {
               </div>
             </div>
 
-            <div className="hidden md:flex items-center gap-2 bg-gray-800/30 backdrop-blur-sm rounded-full px-4 py-2 border border-gray-700/50">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-              <span className="text-gray-300 text-sm">Online</span>
+            <div className="flex items-center gap-4">
+              {/* Speech Toggle Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={toggleSpeech}
+                className={`p-3 backdrop-blur-sm rounded-xl transition-all border ${
+                  speechEnabled
+                    ? "bg-green-500/20 border-green-500/50 text-green-400"
+                    : "bg-gray-800/50 border-gray-700/50 text-gray-400"
+                }`}
+              >
+                {speechEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+              </motion.button>
+
+              <div className="hidden md:flex items-center gap-2 bg-gray-800/30 backdrop-blur-sm rounded-full px-4 py-2 border border-gray-700/50">
+                <div
+                  className={`w-2 h-2 rounded-full animate-pulse ${
+                    isSpeaking ? "bg-blue-400" : isListening ? "bg-red-400" : "bg-green-400"
+                  }`}
+                />
+                <span className="text-gray-300 text-sm">
+                  {isSpeaking ? "Speaking" : isListening ? "Listening" : "Online"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -290,7 +469,7 @@ const Chat = () => {
           >
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-3">🚀 Quick Start</h2>
-              <p className="text-gray-400">Choose a question below or type your own</p>
+              <p className="text-gray-400">Choose a question below, type, or speak your query</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -337,10 +516,32 @@ const Chat = () => {
                     className={`flex items-start gap-3 max-w-[85%] ${message.isBot ? "flex-row" : "flex-row-reverse"}`}
                   >
                     {/* Avatar */}
-                    <div className={`flex-shrink-0 ${message.isBot ? "" : "order-2"}`}>
+                    <div className={`flex-shrink-0 relative ${message.isBot ? "" : "order-2"}`}>
                       {message.isBot ? (
-                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
-                          <Sparkles className="w-5 h-5 text-white" />
+                        <div className="relative">
+                          <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
+                            <Sparkles className="w-5 h-5 text-white" />
+                          </div>
+
+                          {/* Lottie Animation - Fixed positioning */}
+                          {isSpeaking && index === messages.length - 1 && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              className="absolute -top-2 -right-2 w-16 h-16 pointer-events-none"
+                            >
+                              <div className="w-full h-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full backdrop-blur-sm border border-blue-500/30 flex items-center justify-center">
+                                <Player
+                                  ref={lottieRef}
+                                  autoplay
+                                  loop
+                                  src="/speaking.json"
+                                  style={{ width: "32px", height: "32px" }}
+                                />
+                              </div>
+                            </motion.div>
+                          )}
                         </div>
                       ) : (
                         <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg">
@@ -417,18 +618,27 @@ const Chat = () => {
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Ask about government schemes..."
-                    className="w-full bg-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl px-6 py-4 pr-16 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all text-sm"
+                    placeholder={isListening ? "Listening..." : "Ask about government schemes or speak..."}
+                    className={`w-full bg-gray-900/50 backdrop-blur-sm border rounded-2xl px-6 py-4 pr-16 text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all text-sm ${
+                      isListening
+                        ? "border-red-500/50 focus:ring-red-500/50 focus:border-red-500/50"
+                        : "border-gray-700/50 focus:ring-purple-500/50 focus:border-purple-500/50"
+                    }`}
                     disabled={isLoading}
                   />
                   <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
                     <motion.button
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
-                      className="p-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all"
-                      disabled={isLoading}
+                      onClick={isListening ? stopListening : startListening}
+                      className={`p-2 backdrop-blur-sm border rounded-xl transition-all ${
+                        isListening
+                          ? "bg-red-500/20 border-red-500/50 text-red-400"
+                          : "bg-gray-800/50 border-gray-700/50 text-gray-400 hover:text-white hover:bg-gray-700/50"
+                      }`}
+                      disabled={isLoading || !recognition}
                     >
-                      <Mic className="w-4 h-4" />
+                      {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                     </motion.button>
                   </div>
                 </div>
@@ -446,10 +656,18 @@ const Chat = () => {
             </div>
 
             <div className="flex items-center justify-between mt-4">
-              <p className="text-xs text-gray-500">Ask in Hindi or English • Press Enter to send</p>
+              <p className="text-xs text-gray-500">
+                {isListening
+                  ? "🎤 Listening... Speak now"
+                  : "Ask in Hindi or English • Press Enter to send • Click mic to speak"}
+              </p>
               <div className="flex items-center gap-2 text-xs text-gray-500">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                Powered by AI
+                <div
+                  className={`w-2 h-2 rounded-full animate-pulse ${
+                    isSpeaking ? "bg-blue-400" : isListening ? "bg-red-400" : "bg-green-400"
+                  }`}
+                />
+                {isSpeaking ? "AI Speaking" : isListening ? "Voice Input" : "Powered by AI"}
               </div>
             </div>
           </div>
