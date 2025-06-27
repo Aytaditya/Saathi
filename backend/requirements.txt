@@ -3,3 +3,7 @@ fastapi
 uvicorn
 pypdf
 langchain_community
+langgraph
+langchain_google_genai
+langchain_mcp_adapters 
+langchain_tavily

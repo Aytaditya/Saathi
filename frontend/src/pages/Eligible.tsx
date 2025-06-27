@@ -1,9 +1,10 @@
 
 
+
 const Eligible = () => {
   return (
     <div>
-      hiiii eligliblity
+      hi Eligible
     </div>
   )
 }
