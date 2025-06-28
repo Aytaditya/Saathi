@@ -45,6 +45,7 @@ const Chat = () => {
   const synthRef = useRef(null)
   const lottieRef = useRef()
   const forceRef = useRef()
+  const audioRef = useRef(null) // Ref for the Audio element
 
   const quickQuestions = [
     "What are benefits of Pradhan Mantri Jan Arogya Yojana",
@@ -241,16 +242,20 @@ const Chat = () => {
     }
 
     // Initialize Speech Synthesis
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      synthRef.current = window.speechSynthesis
-    }
+    // if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    //   synthRef.current = window.speechSynthesis
+    // }
 
     // Initialize graph
     initializeGraph()
 
     return () => {
-      if (synthRef.current) {
-        synthRef.current.cancel()
+      // if (synthRef.current) {
+      //   synthRef.current.cancel()
+      // }
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
       }
     }
   }, [initializeGraph])
@@ -292,38 +297,86 @@ const Chat = () => {
   }, [isSpeaking])
 
   // Text-to-Speech function
-  const speakText = (text) => {
-    if (!speechEnabled || !synthRef.current) return
+  const speakText = async (text) => {
+    if (!speechEnabled) return
 
-    if (synthRef.current.speaking) {
-      synthRef.current.cancel()
+    // Stop any currently playing audio
+    if (audioRef.current && !audioRef.current.paused) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
     }
 
     const cleanText = text.replace(/[#*`]/g, "").replace(/\n+/g, ". ").replace(/\s+/g, " ").trim()
 
     if (cleanText) {
-      const utterance = new SpeechSynthesisUtterance(cleanText)
-      utterance.rate = 0.9
-      utterance.pitch = 1
-      utterance.volume = 0.8
+      setIsSpeaking(true)
+      try {
+        const apiKey = import.meta.env.VITE_MURF_API_KEY
+        if (!apiKey) {
+          console.error("MURF_API_KEY is not set.")
+          setIsSpeaking(false)
+          return
+        }
 
-      const voices = synthRef.current.getVoices()
-      const preferredVoice =
-        voices.find(
-          (voice) =>
-            voice.lang.startsWith("en") &&
-            (voice.name.includes("Google") || voice.name.includes("Microsoft") || voice.name.includes("Natural")),
-        ) || voices.find((voice) => voice.lang.startsWith("en"))
+        const response = await fetch("https://api.murf.ai/v1/speech/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          body: JSON.stringify({
+            text: cleanText,
+            voiceId: "en-IN-isha",
+            format: "MP3",
+            encodeAsBase64: true,
+          }),
+        })
 
-      if (preferredVoice) {
-        utterance.voice = preferredVoice
+        if (!response.ok) {
+          const errorData = await response.json()
+          console.error("Murf AI API Error:", errorData)
+          setIsSpeaking(false)
+          return
+        }
+
+        const data = await response.json()
+
+        if (data.encodedAudio) {
+          const audioSrc = `data:audio/mp3;base64,${data.encodedAudio}`
+          if (audioRef.current) {
+            audioRef.current.pause() // Ensure any previous audio is stopped
+          }
+          audioRef.current = new Audio(audioSrc)
+          audioRef.current.play()
+          audioRef.current.onended = () => {
+            setIsSpeaking(false)
+          }
+          audioRef.current.onerror = (e) => {
+            console.error("Error playing Murf AI audio:", e)
+            setIsSpeaking(false)
+          }
+        } else if (data.audioFile) {
+          // Fallback if somehow encodedAudio is not present but audioFile is
+          if (audioRef.current) {
+            audioRef.current.pause();
+          }
+          audioRef.current = new Audio(data.audioFile);
+          audioRef.current.play();
+          audioRef.current.onended = () => setIsSpeaking(false);
+          audioRef.current.onerror = (e) => {
+            console.error("Error playing Murf AI audio:", e);
+            setIsSpeaking(false);
+          };
+        } else {
+          console.error("No audio data received from Murf AI")
+          setIsSpeaking(false)
+        }
+      } catch (error) {
+        console.error("Error calling Murf AI API:", error)
+        setIsSpeaking(false)
       }
-
-      utterance.onstart = () => setIsSpeaking(true)
-      utterance.onend = () => setIsSpeaking(false)
-      utterance.onerror = () => setIsSpeaking(false)
-
-      synthRef.current.speak(utterance)
+    } else {
+      setIsSpeaking(false)
     }
   }
 
@@ -341,8 +394,9 @@ const Chat = () => {
 
   const toggleSpeech = () => {
     setSpeechEnabled(!speechEnabled)
-    if (isSpeaking && synthRef.current) {
-      synthRef.current.cancel()
+    if (isSpeaking && audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
       setIsSpeaking(false)
     }
   }
@@ -351,8 +405,9 @@ const Chat = () => {
     if (!messageText.trim() || isLoading) return
 
     // Stop any ongoing speech
-    if (synthRef.current) {
-      synthRef.current.cancel()
+    if (audioRef.current && !audioRef.current.paused) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
       setIsSpeaking(false)
     }
 

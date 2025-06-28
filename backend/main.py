@@ -29,19 +29,19 @@ class AgentRequest(BaseModel):
 
 agent = None
 
-@app.on_event("startup")
-async def init_agent():
-    global agent
-    client = MultiServerMCPClient({
-        "saathi": {
-            "command": "python",
-            "args": ["saathi_server.py"],
-            "transport": "stdio"
-        }
-    })
-    tools = await client.get_tools()
-    model = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
-    agent = create_react_agent(model, tools)
+# @app.on_event("startup")
+# async def init_agent():
+#     global agent
+#     client = MultiServerMCPClient({
+#         "saathi": {
+#             "command": "python",
+#             "args": ["saathi_server.py"],
+#             "transport": "stdio"
+#         }
+#     })
+#     tools = await client.get_tools()
+#     model = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+#     agent = create_react_agent(model, tools)
 
 
 @app.get("/chat")
